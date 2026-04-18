@@ -59,3 +59,6 @@ coverage/
 
 # OpenSpec (local workspace state)
 openspec/.workspace/
+
+# Local vendor builds (Nginx, etc.)
+vendor/

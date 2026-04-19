@@ -37,14 +37,16 @@ const isDesktop = () => windowWidth.value >= 600
           <a href="#" class="nav-link">我的</a>
         </nav>
 
-        <v-btn
-          icon
-          variant="text"
-          class="settings-btn"
-          size="small"
-        >
-          <v-icon size="24">mdi-cog</v-icon>
-        </v-btn>
+        <router-link to="/settings">
+          <v-btn
+            icon
+            variant="text"
+            class="settings-btn"
+            size="small"
+          >
+            <v-icon size="24">mdi-cog</v-icon>
+          </v-btn>
+        </router-link>
       </div>
     </header>
 
@@ -72,7 +74,7 @@ const isDesktop = () => windowWidth.value >= 600
         <section class="cards-section">
           <div class="cards-grid">
             <!-- Triage Card -->
-            <div class="service-card">
+            <router-link to="/triage-chat" class="service-card">
               <div class="card-content">
                 <div class="icon-container">
                   <v-icon size="32" color="#006f67">mdi-medical-bag</v-icon>
@@ -89,10 +91,10 @@ const isDesktop = () => windowWidth.value >= 600
                   <v-icon size="24" color="white">mdi-arrow-right</v-icon>
                 </v-btn>
               </div>
-            </div>
+            </router-link>
 
             <!-- Recovery Card -->
-            <div class="service-card">
+            <router-link to="/recovery-chat" class="service-card">
               <div class="card-content">
                 <div class="icon-container">
                   <v-icon size="32" color="#006f67">mdi-hospital-box</v-icon>
@@ -109,7 +111,7 @@ const isDesktop = () => windowWidth.value >= 600
                   <v-icon size="24" color="white">mdi-arrow-right</v-icon>
                 </v-btn>
               </div>
-            </div>
+            </router-link>
           </div>
         </section>
       </div>

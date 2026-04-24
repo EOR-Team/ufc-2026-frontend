@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
+import AppHeader from '@/components/ui/AppHeader.vue'
+import ChatInput from '@/components/ui/ChatInput.vue'
 
-const router = useRouter()
 const settings = useSettingsStore()
-const messageInput = ref('')
 
 interface ChecklistItem {
   text: string
@@ -37,40 +36,24 @@ const messages = ref<Message[]>([
   }
 ])
 
-const sendMessage = () => {
+const sendMessage = (content: string) => {
   try {
-    const content = messageInput.value.trim()
     if (!content) return
 
     messages.value.push({
       type: 'user',
       content
     })
-    messageInput.value = ''
   } catch (error) {
     console.error('Failed to send message:', error)
   }
-}
-
-const goBack = () => {
-  router.back()
 }
 </script>
 
 <template>
   <v-main>
     <!-- Header -->
-    <header class="recovery-header">
-      <button class="header-btn" @click="goBack">
-        <v-icon size="24">mdi-arrow-left</v-icon>
-      </button>
-      <h1 class="header-title">健康管家</h1>
-      <router-link to="/settings">
-        <button class="header-btn">
-          <v-icon size="24">mdi-cog</v-icon>
-        </button>
-      </router-link>
-    </header>
+    <AppHeader title="健康管家" />
 
     <!-- Chat Messages -->
     <div class="chat-container">
@@ -143,20 +126,10 @@ const goBack = () => {
     </div>
 
     <!-- Chat Input -->
-    <div class="chat-input-wrapper">
-      <div class="chat-input-container">
-        <input
-          v-model="messageInput"
-          type="text"
-          class="chat-input"
-          placeholder="回复助手..."
-          @keyup.enter="sendMessage"
-        />
-        <button class="send-btn" @click="sendMessage">
-          <v-icon size="24" style="font-variation-settings: 'FILL' 1">mdi-send</v-icon>
-        </button>
-      </div>
-    </div>
+    <ChatInput
+      placeholder="回复助手..."
+      @send="sendMessage"
+    />
   </v-main>
 </template>
 
@@ -177,50 +150,6 @@ $background: #f7fafb;
 $outline: #6e797b;
 $secondary: #006a63;
 $error: #ba1a1a;
-
-// Header
-.recovery-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background: rgba(#f7fafb, 0.8);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  height: 64px;
-}
-
-.header-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: $on-surface-variant;
-  transition: all 200ms ease;
-
-  &:hover {
-    background: $surface-container;
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
-.header-title {
-  font-family: 'Manrope', sans-serif;
-  font-weight: 700;
-  font-size: 1.125rem;
-  color: $primary;
-  letter-spacing: -0.02em;
-}
 
 // Chat Container
 .chat-container {
@@ -437,63 +366,4 @@ $error: #ba1a1a;
   }
 }
 
-// Chat Input
-.chat-input-wrapper {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 0;
-  right: 0;
-  z-index: 40;
-  padding: 0 1rem;
-
-  @media (min-width: 768px) {
-    max-width: 48rem;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 0 2rem;
-  }
-}
-
-.chat-input-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.5rem 0.5rem 1rem;
-  background: $surface-container-high;
-  border-radius: 9999px;
-  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
-  border: 1px solid rgba($outline, 0.15);
-}
-
-.chat-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.9375rem;
-  color: $on-surface;
-
-  &::placeholder {
-    color: rgba($on-surface-variant, 0.6);
-  }
-}
-
-.send-btn {
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, $primary 0%, $primary-container 100%);
-  color: $on-primary;
-  border-radius: 50%;
-  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
-  transition: all 200ms ease;
-  flex-shrink: 0;
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
 </style>

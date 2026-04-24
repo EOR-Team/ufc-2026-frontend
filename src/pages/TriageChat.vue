@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSettingsStore } from '@/stores/settings'
 
 const router = useRouter()
+const settings = useSettingsStore()
 const messageInput = ref('')
 
 interface Message {

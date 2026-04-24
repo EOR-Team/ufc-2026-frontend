@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSettingsStore } from '@/stores/settings'
 
 const router = useRouter()
-
-const useOnlineModel = ref(true)
-const useVoiceReading = ref(true)
+const settings = useSettingsStore()
 
 const goBack = () => {
   router.back()
@@ -41,7 +39,7 @@ const goBack = () => {
             </div>
             <!-- Toggle Switch -->
             <label class="toggle-switch">
-              <input v-model="useOnlineModel" type="checkbox" />
+              <input v-model="settings.useOnlineModel" type="checkbox" />
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -62,7 +60,7 @@ const goBack = () => {
             </div>
             <!-- Toggle Switch -->
             <label class="toggle-switch">
-              <input v-model="useVoiceReading" type="checkbox" />
+              <input v-model="settings.useVoiceReading" type="checkbox" />
               <span class="toggle-slider"></span>
             </label>
           </div>

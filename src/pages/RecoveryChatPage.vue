@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSettingsStore } from '@/stores/settings'
 
 const router = useRouter()
+const settings = useSettingsStore()
 const messageInput = ref('')
-const dischargeDay = ref(4)
 
 interface ChecklistItem {
   text: string
@@ -32,20 +33,7 @@ const checklistItems = ref<ChecklistItem[]>([
 const messages = ref<Message[]>([
   {
     type: 'bot',
-    content: '早上好。我正在查看您可穿戴设备的生命体征数据。您的静息心率已经趋于稳定。与昨天相比，您今天感觉如何？'
-  },
-  {
-    type: 'user',
-    content: '我觉得更有精神了一点。咳嗽还在，但没再发烧了。'
-  },
-  {
-    type: 'bot',
-    content: '这是非常棒的进展。不发烧是一个非常积极的信号。由于您仍在咳嗽，请记得多喝温水，今天继续休息以积蓄康复所需的能量。我已经更新了您的每日仪表盘。',
-    hasDashboard: true,
-    progressPercent: 65,
-    progressTitle: '呼吸系统康复',
-    progressDescription: '炎症正在消退。预计 3-5 天内完全好转。',
-    checklist: checklistItems.value
+    content: '您好！有什么我可以给您服务的吗？想提什么问题我都会尽力回答的！'
   }
 ])
 
@@ -78,14 +66,6 @@ const goBack = () => {
         </button>
       </router-link>
     </header>
-
-    <!-- Contextual Status Badge -->
-    <div class="status-badge-container">
-      <span class="status-badge">
-        <v-icon size="14">mdi-calendar-today</v-icon>
-        出院第 {{ dischargeDay }} 天
-      </span>
-    </div>
 
     <!-- Chat Messages -->
     <div class="chat-container">
@@ -172,22 +152,6 @@ const goBack = () => {
         </button>
       </div>
     </div>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-item">
-        <v-icon size="24">mdi-home-health</v-icon>
-        <span>首页</span>
-      </button>
-      <button class="nav-item active">
-        <v-icon size="24" style="font-variation-settings: 'FILL' 1">mdi-chat</v-icon>
-        <span>聊天</span>
-      </button>
-      <button class="nav-item">
-        <v-icon size="24">mdi-person</v-icon>
-        <span>我的</span>
-      </button>
-    </nav>
   </v-main>
 </template>
 
@@ -251,31 +215,6 @@ $error: #ba1a1a;
   font-size: 1.125rem;
   color: $primary;
   letter-spacing: -0.02em;
-}
-
-// Status Badge
-.status-badge-container {
-  position: fixed;
-  top: 72px;
-  left: 0;
-  right: 0;
-  z-index: 40;
-  display: flex;
-  justify-content: center;
-  padding-top: 0.5rem;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.75rem;
-  background: $surface-container-high;
-  color: $on-surface-variant;
-  border-radius: 9999px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
 }
 
 // Chat Container
@@ -496,17 +435,17 @@ $error: #ba1a1a;
 // Chat Input
 .chat-input-wrapper {
   position: fixed;
-  bottom: 88px;
+  bottom: 1.5rem;
   left: 0;
   right: 0;
   z-index: 40;
-  padding: 0 1rem 1rem;
+  padding: 0 1rem;
 
   @media (min-width: 768px) {
     max-width: 48rem;
     left: 50%;
     transform: translateX(-50%);
-    padding: 0 2rem 1rem;
+    padding: 0 2rem;
   }
 }
 
@@ -550,56 +489,6 @@ $error: #ba1a1a;
 
   &:active {
     transform: scale(0.95);
-  }
-}
-
-// Bottom Navigation
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 0.75rem 1rem 1.5rem;
-  background: rgba(#f7fafb, 0.9);
-  backdrop-filter: blur(20px);
-  border-top-left-radius: 2rem;
-  border-top-right-radius: 2rem;
-  box-shadow: 0 -1px 0 rgba(189, 200, 203, 0.15), 0 -8px 30px rgba(0, 0, 0, 0.04);
-}
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: $on-surface-variant;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  min-width: 4rem;
-  transition: all 300ms ease;
-
-  .v-icon {
-    margin-bottom: 0.25rem;
-  }
-
-  span {
-    margin-top: 0.25rem;
-  }
-
-  &.active {
-    color: white;
-    background: $primary;
-  }
-
-  &:active {
-    transform: scale(0.9);
   }
 }
 </style>

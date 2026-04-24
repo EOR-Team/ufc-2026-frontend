@@ -38,12 +38,17 @@ const messages = ref<Message[]>([
 ])
 
 const sendMessage = () => {
-  if (messageInput.value.trim()) {
+  try {
+    const content = messageInput.value.trim()
+    if (!content) return
+
     messages.value.push({
       type: 'user',
-      content: messageInput.value.trim()
+      content
     })
     messageInput.value = ''
+  } catch (error) {
+    console.error('Failed to send message:', error)
   }
 }
 

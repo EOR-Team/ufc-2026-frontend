@@ -77,7 +77,7 @@ const isDesktop = () => windowWidth.value >= 600
             <router-link to="/triage-chat" class="service-card">
               <div class="card-content">
                 <div class="icon-container">
-                  <v-icon size="32" color="#006f67">mdi-medical-bag</v-icon>
+                  <v-icon size="32" :color="$secondary">mdi-medical-bag</v-icon>
                 </div>
                 <h2 class="card-title">智能导诊助手</h2>
                 <p class="card-description">帮助您快速前往相应诊室。</p>
@@ -97,7 +97,7 @@ const isDesktop = () => windowWidth.value >= 600
             <router-link to="/recovery-chat" class="service-card">
               <div class="card-content">
                 <div class="icon-container">
-                  <v-icon size="32" color="#006f67">mdi-hospital-box</v-icon>
+                  <v-icon size="32" :color="$secondary">mdi-hospital-box</v-icon>
                 </div>
                 <h2 class="card-title">病后恢复助手</h2>
                 <p class="card-description">获取量身定制的个性化康复计划。</p>

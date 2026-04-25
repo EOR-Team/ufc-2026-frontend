@@ -1,5 +1,7 @@
 # interaction tech specs
 
+> **SUPERSEDED**: This document is superseded by the formal OpenSpec animation system specs at `openspec/specs/animation-system/`. The authoritative specifications for `typewriter-animation`, `confirmation-list-animation`, `confirm-button-animation`, `nav-path-animation`, and `animation-orchestration` are now maintained in `openspec/changes/animation-system/specs/`. This file is retained for reference only and may be removed in a future release.
+
 ## ContentBlock 类型定义
 
 ```typescript

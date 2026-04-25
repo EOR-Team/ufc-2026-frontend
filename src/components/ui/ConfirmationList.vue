@@ -135,18 +135,12 @@ defineExpose({
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$primary-container: #007b8b;
-$secondary-container: #8bf1e6;
-$on-surface: #181c1d;
-$on-surface-variant: #3e494b;
-
 .confirmation-list {
   list-style: disc inside;
   margin: 0.75rem 0;
   padding: 0.5rem 0;
-  border-top: 1px solid rgba($on-surface, 0.08);
-  border-bottom: 1px solid rgba($on-surface, 0.08);
+  border-top: 1px solid rgba(var(--color-on-surface), 0.08);
+  border-bottom: 1px solid rgba(var(--color-on-surface), 0.08);
   opacity: 0;
   transition: opacity 250ms ease;
 
@@ -170,11 +164,11 @@ $on-surface-variant: #3e494b;
 
   .label {
     font-weight: 500;
-    color: $on-surface;
+    color: var(--color-on-surface);
   }
 
   .value {
-    color: $on-surface-variant;
+    color: var(--color-on-surface-variant);
   }
 }
 </style>

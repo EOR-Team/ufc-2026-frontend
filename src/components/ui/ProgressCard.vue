@@ -22,22 +22,16 @@ defineProps<Props>()
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$surface-container-lowest: #ffffff;
-$on-surface: #181c1d;
-$surface-container-high: #e5e9ea;
-$outline: #6e797b;
-
 .dashboard-card {
-  background: $surface-container-lowest;
-  border: 1px solid rgba($outline, 0.15);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(var(--color-outline), 0.15);
   border-radius: 1rem;
   padding: 1.25rem;
-  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
+  box-shadow: var(--shadow-md);
   transition: box-shadow 300ms ease;
 
   &:hover {
-    box-shadow: 0 8px 50px rgba($on-surface, 0.08);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -52,12 +46,12 @@ $outline: #6e797b;
   font-family: 'Manrope', sans-serif;
   font-weight: 600;
   font-size: 1rem;
-  color: $on-surface;
+  color: var(--color-on-surface);
 }
 
 .progress-badge {
-  background: rgba($primary, 0.2);
-  color: $primary;
+  background: rgba(var(--color-primary), 0.2);
+  color: var(--color-primary);
   font-family: 'Inter', sans-serif;
   font-weight: 700;
   font-size: 0.875rem;
@@ -68,14 +62,14 @@ $outline: #6e797b;
 .progress-bar-track {
   width: 100%;
   height: 10px;
-  background: $surface-container-high;
+  background: var(--color-surface-container-high);
   border-radius: 9999px;
   overflow: hidden;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: $primary;
+  background: var(--color-primary);
   border-radius: 9999px;
   transition: width 1000ms ease-out;
 }
@@ -83,7 +77,7 @@ $outline: #6e797b;
 .progress-description {
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
-  color: $on-surface;
+  color: var(--color-on-surface);
   margin-top: 0.75rem;
 }
 </style>

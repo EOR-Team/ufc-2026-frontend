@@ -32,12 +32,6 @@ defineProps<Props>()
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$secondary: #006a63;
-$on-surface: #181c1d;
-$on-surface-variant: #3e494b;
-$outline: #6e797b;
-
 .nav-path {
   display: flex;
   flex-wrap: wrap;
@@ -49,15 +43,15 @@ $outline: #6e797b;
 }
 
 .path-step {
-  color: $on-surface-variant;
+  color: var(--color-on-surface-variant);
 
   &.highlight {
-    color: $primary;
+    color: var(--color-primary);
     font-weight: 500;
   }
 
   &.secondary {
-    color: $secondary;
+    color: var(--color-secondary);
     font-weight: 500;
   }
 }

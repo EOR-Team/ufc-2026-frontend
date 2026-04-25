@@ -34,14 +34,6 @@ withDefaults(defineProps<Props>(), {
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$primary-container: #007b8b;
-$secondary-container: #8bf1e6;
-$secondary: #006a63;
-$surface-container-highest: #e0e3e4;
-$on-surface: #181c1d;
-$on-primary: #ffffff;
-
 .message-wrapper {
   display: flex;
   align-items: flex-end;
@@ -64,7 +56,7 @@ $on-primary: #ffffff;
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: $secondary-container;
+  background: var(--color-secondary-container);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,7 +64,7 @@ $on-primary: #ffffff;
   margin-bottom: 0.25rem;
 
   .v-icon {
-    color: $secondary;
+    color: var(--color-secondary);
   }
 }
 
@@ -82,15 +74,15 @@ $on-primary: #ffffff;
   max-width: 80%;
 
   &.bot-bubble {
-    background: $surface-container-highest;
-    color: $on-surface;
-    box-shadow: 0 4px 40px rgba($on-surface, 0.06);
+    background: var(--color-surface-container-highest);
+    color: var(--color-on-surface);
+    box-shadow: var(--shadow-md);
   }
 
   &.user-bubble {
-    background: linear-gradient(135deg, $primary 0%, $primary-container 100%);
-    color: $on-primary;
-    box-shadow: 0 4px 40px rgba($on-surface, 0.06);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+    color: var(--color-on-primary);
+    box-shadow: var(--shadow-md);
   }
 }
 

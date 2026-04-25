@@ -57,25 +57,16 @@ const toggle = (index: number) => {
 </template>
 
 <style scoped lang="scss">
-$secondary: #006a63;
-$surface-container-low: #f1f4f5;
-$surface-container: #ebeeef;
-$surface-container-lowest: #ffffff;
-$on-surface: #181c1d;
-$on-surface-variant: #3e494b;
-$outline: #6e797b;
-$error: #ba1a1a;
-
 .dashboard-card {
-  background: $surface-container-lowest;
-  border: 1px solid rgba($outline, 0.15);
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(var(--color-outline), 0.15);
   border-radius: 1rem;
   padding: 1.25rem;
-  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
+  box-shadow: var(--shadow-md);
   transition: box-shadow 300ms ease;
 
   &:hover {
-    box-shadow: 0 8px 50px rgba($on-surface, 0.08);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -90,7 +81,7 @@ $error: #ba1a1a;
   font-family: 'Manrope', sans-serif;
   font-weight: 600;
   font-size: 1rem;
-  color: $on-surface;
+  color: var(--color-on-surface);
 }
 
 .checklist {
@@ -108,12 +99,12 @@ $error: #ba1a1a;
   gap: 0.75rem;
   padding: 0.75rem;
   border-radius: 0.5rem;
-  background: $surface-container-low;
+  background: var(--color-surface-container-low);
   transition: all 200ms ease;
   cursor: pointer;
 
   &:hover {
-    background: $surface-container;
+    background: var(--color-surface-container);
   }
 
   &.done {
@@ -128,7 +119,7 @@ $error: #ba1a1a;
 
   &.pending {
     .checklist-text {
-      color: $on-surface;
+      color: var(--color-on-surface);
     }
   }
 }
@@ -143,17 +134,17 @@ $error: #ba1a1a;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
   font-weight: 500;
-  color: $on-surface;
+  color: var(--color-on-surface);
 }
 
 .checklist-subtext {
   font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
-  color: $on-surface-variant;
+  color: var(--color-on-surface-variant);
   margin-top: 0.125rem;
 
   &.urgent {
-    color: $error;
+    color: var(--color-error);
     font-weight: 500;
   }
 }

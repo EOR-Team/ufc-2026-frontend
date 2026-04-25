@@ -6,21 +6,13 @@ import ChatInput from '@/components/ui/ChatInput.vue'
 import TypewriterText from '@/components/ui/TypewriterText.vue'
 import ConfirmationList from '@/components/ui/ConfirmationList.vue'
 import ConfirmButton from '@/components/ui/ConfirmButton.vue'
+import type { ChatMessage } from '~/types/chat'
+import type { ComponentRefs, VisibilityState, ConfirmationListExposed, ConfirmButtonExposed } from '~/types/components'
 
 const settings = useSettingsStore()
 
-type ContentBlock =
-  | string
-  | { type: 'confirmation-list'; items: { label: string; value: string }[] }
-  | { type: 'confirm-button' }
-
-interface Message {
-  type: 'bot' | 'user'
-  content: ContentBlock[]
-}
-
 // Bot messages data
-const botMessagesData: Message[] = [
+const botMessagesData: ChatMessage[] = [
   {
     type: 'bot',
     content: ['您好，我是您的智能导诊助手！为了给您提供更加准确的导诊服务，请您先描述一下自己前来就诊的原因、当前的感受等信息哦！']
@@ -45,7 +37,7 @@ const botMessagesData: Message[] = [
 ]
 
 // Messages to display (only bot messages that have been "unlocked")
-const displayedMessages = ref<Message[]>([botMessagesData[0]])
+const displayedMessages = ref<ChatMessage[]>([botMessagesData[0]])
 
 // Current bot message index (which bot message we're on)
 const currentBotIndex = ref(0)
@@ -60,26 +52,6 @@ onMounted(async () => {
 })
 
 // Component refs organized by message index
-interface ConfirmationListExposed {
-  start: () => Promise<void>
-}
-
-interface ConfirmButtonExposed {
-  start: () => Promise<void>
-}
-
-interface ComponentRefs {
-  typewriters: InstanceType<typeof TypewriterText>[]
-  confirmationList: ConfirmationListExposed | null
-  confirmButton: ConfirmButtonExposed | null
-}
-
-// Track which components are visible (for animation)
-interface VisibilityState {
-  confirmationList: boolean
-  confirmButton: boolean
-}
-
 const componentRefsMap = ref<Map<number, ComponentRefs>>(new Map())
 const visibilityMap = ref<Map<number, VisibilityState>>(new Map())
 
@@ -194,7 +166,7 @@ const playAnimationSequence = async (displayedBotIndex: number) => {
 }
 
 // Check if content should use typewriter (string-only message)
-const shouldUseTypewriter = (msg: Message): boolean => {
+const shouldUseTypewriter = (msg: ChatMessage): boolean => {
   return msg.type === 'bot' && msg.content.every(block => typeof block === 'string')
 }
 </script>

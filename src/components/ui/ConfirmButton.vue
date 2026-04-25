@@ -37,23 +37,18 @@ defineExpose({
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$primary-container: #007b8b;
-$on-primary: #ffffff;
-$on-surface: #181c1d;
-
 .confirm-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.5rem;
-  background: linear-gradient(135deg, $primary 0%, $primary-container 100%);
-  color: $on-primary;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+  color: var(--color-on-primary);
   border-radius: 9999px;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba($on-surface, 0.08);
+  box-shadow: var(--shadow-md);
   transition: all 300ms ease;
   margin-top: 1rem;
   opacity: 0;
@@ -69,7 +64,7 @@ $on-surface: #181c1d;
   }
 
   &:hover {
-    box-shadow: 0 8px 24px rgba($on-surface, 0.12);
+    box-shadow: var(--shadow-lg);
   }
 }
 </style>

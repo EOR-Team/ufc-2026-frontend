@@ -45,15 +45,6 @@ const send = () => {
 </template>
 
 <style scoped lang="scss">
-$primary: #00606d;
-$primary-container: #007b8b;
-$surface-container-high: #e5e9ea;
-$on-surface: #181c1d;
-$on-surface-variant: #3e494b;
-$on-primary: #ffffff;
-$outline: #6e797b;
-$background: #f7fafb;
-
 .chat-input-wrapper {
   position: fixed;
   bottom: 0;
@@ -61,7 +52,7 @@ $background: #f7fafb;
   right: 0;
   z-index: 40;
   padding: 1.5rem 1rem 2rem;
-  background: linear-gradient(to top, $background 80%, transparent);
+  background: linear-gradient(to top, var(--color-background) 80%, transparent);
   pointer-events: none;
 
   @media (min-width: 768px) {
@@ -79,10 +70,10 @@ $background: #f7fafb;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.5rem 0.5rem 1rem;
-  background: $surface-container-high;
+  background: var(--color-surface-container-high);
   border-radius: 9999px;
-  box-shadow: 0 4px 12px rgba($on-surface, 0.06);
-  border: 1px solid rgba($outline, 0.15);
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(var(--color-outline), 0.15);
   pointer-events: auto;
 }
 
@@ -93,10 +84,10 @@ $background: #f7fafb;
   outline: none;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
-  color: $on-surface;
+  color: var(--color-on-surface);
 
   &::placeholder {
-    color: rgba($on-surface-variant, 0.6);
+    color: rgba(var(--color-on-surface-variant), 0.6);
   }
 }
 
@@ -106,10 +97,10 @@ $background: #f7fafb;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, $primary 0%, $primary-container 100%);
-  color: $on-primary;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+  color: var(--color-on-primary);
   border-radius: 50%;
-  box-shadow: 0 4px 12px rgba($on-surface, 0.08);
+  box-shadow: var(--shadow-md);
   transition: all 300ms ease;
   flex-shrink: 0;
 
@@ -118,7 +109,7 @@ $background: #f7fafb;
   }
 
   &:hover {
-    box-shadow: 0 8px 24px rgba($on-surface, 0.12);
+    box-shadow: var(--shadow-lg);
   }
 }
 </style>

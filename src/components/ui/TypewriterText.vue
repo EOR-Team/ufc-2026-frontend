@@ -140,8 +140,6 @@ defineExpose({
 </template>
 
 <style scoped lang="scss">
-$on-surface: #181c1d;
-
 .typewriter-container {
   overflow: hidden;
   width: fit-content;
@@ -153,7 +151,7 @@ $on-surface: #181c1d;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
   line-height: 1.6;
-  color: $on-surface;
+  color: var(--color-on-surface);
 }
 
 .fade-in {

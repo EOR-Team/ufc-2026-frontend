@@ -20,6 +20,7 @@ export type ContentBlock =
   | string
   | { type: 'confirmation-list'; items: ConfirmationItem[] }
   | { type: 'confirm-button' }
+  | { type: 'nav-path'; route: string }
 
 /**
  * Represents a message in the chat conversation.

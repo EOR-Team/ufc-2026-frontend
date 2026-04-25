@@ -9,8 +9,7 @@ type ContentBlock =
   | string
   | { type: 'confirmation-list'; items: { label: string; value: string }[] }
   | { type: 'confirm-button' }
-  | { type: 'nav-path'; route: string; steps: string[]; highlights: number[] }
-  | { type: 'highlight'; content: string }
+  | { type: 'nav-path'; route: string }
 
 interface Message {
   type: 'bot' | 'user'
@@ -415,21 +414,11 @@ interface HighlightSegment {
 ```typescript
 interface Props {
   route: string  // "入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口"
-  steps?: string[]  // 可选：解析后的路径节点数组
-  highlights?: number[]  // 可选：高亮的节点索引
+  visible?: boolean  // 可见性控制
 }
 
 interface Expose {
   start: () => Promise<void>  // 触发动画，动画完成后 resolve
-}
-```
-
-**数据结构：**
-```typescript
-interface NavPathProps {
-  route: string  // "入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口"
-  steps: string[]  // 解析后的路径节点数组
-  highlights: number[]  // 高亮的节点索引
 }
 ```
 
@@ -438,21 +427,17 @@ interface NavPathProps {
 <nav-path route=入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口 />
 ```
 
-**解析后：**
-```typescript
-const navPathData: NavPathProps = {
-  route: "入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口",
-  steps: ["入口（当前地点）", "挂号处", "急诊诊室", "缴费处", "药房", "出口"],
-  highlights: [0, 2, 5]  // 入口、急诊诊室、出口 高亮
-}
-```
+**解析逻辑：**
+- `route` 字符串按 `+` 分割为节点数组
+- 节点名为 `急诊诊室` 的自动高亮
+- 高亮样式：`color: $primary`, `font-weight: 500`
 
 **渲染结构：**
 ```vue
 <div class="nav-path">
   <template v-for="(step, i) in steps" :key="i">
-    <span :class="['path-step', highlights.includes(i) ? 'highlight' : '']">
-      {{ step }}
+    <span :class="['path-step', step.isHighlighted ? 'highlight' : '']">
+      {{ step.name }}
     </span>
     <span v-if="i < steps.length - 1" class="path-arrow">
       <v-icon size="12" color="#6e797b">mdi-arrow-right</v-icon>
@@ -492,10 +477,43 @@ const navPathData: NavPathProps = {
 - **默认状态**：组件挂载后显示静态内容，不自动播放动画
 - **手动触发**：通过调用 `start()` 方法启动动画
 - **动画序列**：
-  1. 整体骨架屏 fade in：250ms
-  2. 路径节点和箭头依次显示（每个节点 + 箭头作为一个单元）
-  3. 每个单元内部：先显示节点文字（打字机效果），然后箭头 fade in
-- 节点高亮样式在显示时直接应用
+  1. 整体容器淡入：opacity 0→1, 250ms
+  2. 50ms 后开始节点动画
+  3. 每个节点依次出现：scale(0.8→1) + opacity(0→1), 200ms
+  4. 节点间隔：250ms
+  5. 所有节点完成后，等待 200ms resolve
+- 节点高亮样式（`急诊诊室`）在显示时直接应用
+- 箭头直接跟随容器可见，无需单独动画
+
+**状态管理：**
+```typescript
+interface ItemState {
+  visible: boolean    // 节点是否已显示
+}
+```
+
+**CSS 动画：**
+```scss
+.nav-path {
+  opacity: 0;
+  transition: opacity 250ms ease;
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+.path-step {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 200ms ease, transform 200ms ease;
+
+  &.step-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+```
 
 ---
 
@@ -503,14 +521,23 @@ const navPathData: NavPathProps = {
 
 **所有消息概览：**
 
-| 消息 | 类型 | 特殊组件 | 动画复杂度 |
-|------|------|----------|------------|
-| Message 1 | 纯文本 | 无 | 低（单行） |
-| Message 2 | 文本+组件 | confirmation-list, confirm-button | 高（4段） |
-| Message 3 | 文本+高亮+组件 | highlight, confirmation-list, confirm-button | 高 |
-| Message 4 | 文本+高亮+组件 | highlight, nav-path, confirm-button | 高 |
-| Message 5 | 文本+组件 | nav-path, confirm-button | 中 |
-| Message 6 | 纯文本 | 无 | 低（单行） |
+| 消息 | 类型 | 特殊组件 | 触发方式 | 动画复杂度 |
+|------|------|----------|----------|------------|
+| Message 1 | 纯文本 | 无 | 页面加载（自动） | 低（单行） |
+| Message 2 | 文本+组件 | confirmation-list, confirm-button | 用户输入 | 高（4段） |
+| Message 3 | 文本+高亮+组件 | highlight, confirmation-list, confirm-button | confirm-button 点击 | 高 |
+| Message 4 | 文本+高亮+组件 | highlight, nav-path, confirm-button | confirm-button 点击 | 高 |
+| Message 5 | 文本+组件 | nav-path, confirm-button | 用户输入 | 中 |
+| Message 6 | 纯文本 | 无 | confirm-button 点击 | 低（单行） |
+
+**消息触发逻辑：**
+- `sendMessage`：用户输入时调用，推进到下一条 bot 消息
+- `handleConfirmClick`：confirm-button 点击时调用，**仅在 currentBotIndex >= 5 时推进消息**
+- 这意味着：
+  - Message 2 由 `sendMessage` 推进（currentBotIndex 0 → 1）
+  - Message 3-4 由 `handleConfirmClick` 推进（currentBotIndex 1→2, 2→3, 3→4）
+  - Message 5 由 `sendMessage` 推进（currentBotIndex 4 → 5）
+  - Message 6 由 `handleConfirmClick` 推进（currentBotIndex 5 → 6）
 
 **关键组件动画总结：**
 
@@ -524,7 +551,7 @@ const navPathData: NavPathProps = {
 
 **动画触发时序：**
 ```
-用户输入消息
+用户输入消息或点击 confirm-button
     ↓
 显示下一条 bot 消息（静态，无动画）
     ↓

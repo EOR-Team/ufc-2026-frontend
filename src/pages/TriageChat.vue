@@ -6,8 +6,9 @@ import ChatInput from '@/components/ui/ChatInput.vue'
 import TypewriterText from '@/components/ui/TypewriterText.vue'
 import ConfirmationList from '@/components/ui/ConfirmationList.vue'
 import ConfirmButton from '@/components/ui/ConfirmButton.vue'
+import NavPath from '@/components/ui/NavPath.vue'
 import type { ChatMessage } from '~/types/chat'
-import type { ComponentRefs, VisibilityState, ConfirmationListExposed, ConfirmButtonExposed } from '~/types/components'
+import type { ComponentRefs, VisibilityState, ConfirmationListExposed, ConfirmButtonExposed, NavPathExposed } from '~/types/components'
 
 const settings = useSettingsStore()
 
@@ -33,6 +34,43 @@ const botMessagesData: ChatMessage[] = [
       '如果觉得和你的感觉不同，就进行更改，直到完全符合你的感觉。',
       { type: 'confirm-button' }
     ]
+  },
+  {
+    type: 'bot',
+    content: [
+      '我明白了！您说 {{highlight}}三四天{{/highlight}}。所以当前状况应该是：',
+      { type: 'confirmation-list', items: [
+        { label: '不适部位：', value: '头部疼痛；发烧' },
+        { label: '严重程度：', value: '轻微' },
+        { label: '持续时间：', value: '三四天' },
+        { label: '具体描述：', value: '一直不是特别舒服' },
+        { label: '其他信息：', value: '暂无' }
+      ]},
+      '还有什么问题吗？',
+      { type: 'confirm-button' }
+    ]
+  },
+  {
+    type: 'bot',
+    content: [
+      '好的！分析完您的病情后，为您选择了前往 {{highlight}}急诊诊室{{/highlight}} 就诊！\n这是您的行进路程：\n',
+      { type: 'nav-path', route: '入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口' },
+      '\n有什么想修改的吗？直接说就好！\n如果没有，就确认吧！\n',
+      { type: 'confirm-button' }
+    ]
+  },
+  {
+    type: 'bot',
+    content: [
+      '我明白你的意思了！现在是新的行进路径：\n',
+      { type: 'nav-path', route: '入口+挂号处+急诊诊室+缴费处+药房+洗手间+出口' },
+      '\n还想修改什么吗？\n',
+      { type: 'confirm-button' }
+    ]
+  },
+  {
+    type: 'bot',
+    content: ['好的！现在开始导航！']
   }
 ]
 
@@ -62,7 +100,7 @@ const setVisibility = (msgIdx: number, state: VisibilityState) => {
 
 // Get visibility state for a message index
 const getVisibility = (msgIdx: number): VisibilityState => {
-  return visibilityMap.value.get(msgIdx) || { confirmationList: false, confirmButton: false }
+  return visibilityMap.value.get(msgIdx) || { confirmationList: false, confirmButton: false, navPath: false }
 }
 
 // Send message handler
@@ -119,7 +157,7 @@ const playAnimationSequence = async (displayedBotIndex: number) => {
   }
 
   // Initialize visibility state - all components hidden initially
-  setVisibility(displayedBotIndex, { confirmationList: false, confirmButton: false })
+  setVisibility(displayedBotIndex, { confirmationList: false, confirmButton: false, navPath: false })
 
   // Get the actual message from displayedMessages
   const message = displayedMessages.value[displayedBotIndex]
@@ -154,6 +192,13 @@ const playAnimationSequence = async (displayedBotIndex: number) => {
       if (refs.confirmButton) {
         await refs.confirmButton.start()
       }
+    } else if (block.type === 'nav-path') {
+      // Set visibility to true before starting animation
+      const currentVis = getVisibility(displayedBotIndex)
+      setVisibility(displayedBotIndex, { ...currentVis, navPath: true })
+      if (refs.navPath) {
+        await refs.navPath.start()
+      }
     }
 
     // Wait 100ms before next animation (except for the last block)
@@ -168,6 +213,41 @@ const playAnimationSequence = async (displayedBotIndex: number) => {
 // Check if content should use typewriter (string-only message)
 const shouldUseTypewriter = (msg: ChatMessage): boolean => {
   return msg.type === 'bot' && msg.content.every(block => typeof block === 'string')
+}
+
+// Handle confirm button click
+// Only advances to next message when currentBotIndex >= 5 (i.e., on Message 5+)
+const handleConfirmClick = async (msgIdx: number) => {
+  try {
+    if (isAnimating.value) return
+
+    // Add user confirmation message
+    displayedMessages.value.push({
+      type: 'user',
+      content: ['确认']
+    })
+
+    // Only advance to next bot message when on Message 5 or later
+    // This allows user input to trigger Message 5, while confirm button triggers Message 6
+    if (currentBotIndex.value >= 5) {
+      const nextBotIndex = currentBotIndex.value + 1
+
+      if (nextBotIndex < botMessagesData.length) {
+        // Show the next bot message first (without animation)
+        displayedMessages.value.push(botMessagesData[nextBotIndex])
+        currentBotIndex.value = nextBotIndex
+
+        // Wait for DOM update
+        await nextTick()
+
+        // Start animation sequence (use displayedMessages length - 1 as the key)
+        const displayedBotIndex = displayedMessages.value.length - 1
+        await playAnimationSequence(displayedBotIndex)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to handle confirm:', error)
+  }
 }
 </script>
 
@@ -193,7 +273,7 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
               <TypewriterText
                 :ref="el => {
                   if (el) {
-                    const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                    const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null, navPath: null }
                     refs.typewriters = [el as InstanceType<typeof TypewriterText>]
                     setComponentRefs(idx, refs)
                   }
@@ -209,7 +289,7 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
                   v-if="typeof block === 'string'"
                   :ref="el => {
                     if (el) {
-                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null, navPath: null }
                       refs.typewriters.push(el as InstanceType<typeof TypewriterText>)
                       setComponentRefs(idx, refs)
                     }
@@ -221,7 +301,7 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
                   v-else-if="block.type === 'confirmation-list'"
                   :ref="el => {
                     if (el) {
-                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null, navPath: null }
                       refs.confirmationList = el as unknown as ConfirmationListExposed
                       setComponentRefs(idx, refs)
                     }
@@ -234,12 +314,26 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
                   v-else-if="block.type === 'confirm-button'"
                   :ref="el => {
                     if (el) {
-                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null, navPath: null }
                       refs.confirmButton = el as unknown as ConfirmButtonExposed
                       setComponentRefs(idx, refs)
                     }
                   }"
                   :visible="getVisibility(idx).confirmButton"
+                  @click="handleConfirmClick(idx)"
+                />
+                <!-- Nav Path -->
+                <NavPath
+                  v-else-if="block.type === 'nav-path'"
+                  :ref="el => {
+                    if (el) {
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null, navPath: null }
+                      refs.navPath = el as unknown as NavPathExposed
+                      setComponentRefs(idx, refs)
+                    }
+                  }"
+                  :route="block.route"
+                  :visible="getVisibility(idx).navPath"
                 />
               </template>
             </template>

@@ -262,4 +262,188 @@ const animateItem = () => {
 - 过渡动画：`transition: all 300ms ease`
 - 点击缩放：`transform: scale(0.95)`
 
+### NavPath 组件
+
+**创建日期：** 2026-04-25
+
+**功能描述：**
+显示就诊路径导航，逐节点亮动画。
+
+**ContentBlock 结构：**
+```typescript
+{ type: 'nav-path'; route: string }
+```
+
+**Props：**
+```typescript
+interface Props {
+  route: string                    // 路径字符串，用 + 分隔
+  visible?: boolean               // 可见性控制
+}
+```
+
+**动画设计决策：**
+
+| 方案 | 描述 | 选择原因 |
+|------|------|----------|
+| 打字机效果 | 逐字显示节点名 | 不适合，节点名非自然语言 |
+| 逐节点亮 | scale(0.8→1) + opacity(0→1) | **采用**，空间离散感更强 |
+| 整体淡入 | 一闪而过 |太平淡|
+
+**时序设计：**
+- 容器淡入：50ms 延迟
+- 节点间隔：250ms/节点
+- 单节点动画：200ms (scale + opacity)
+- 最终延迟：200ms
+
+**状态管理：**
+```typescript
+interface ItemState {
+  visible: boolean    // 节点是否已显示
+}
+```
+
+**高亮节点：**
+- `急诊诊室` 自动高亮（`isHighlighted: true`）
+- 高亮样式：`color: $primary; font-weight: 500;`
+
+**关键代码：**
+```typescript
+const start = (): Promise<void> => {
+  return new Promise((resolve) => {
+    initializeItems()
+    requestAnimationFrame(() => {
+      isVisible.value = true
+      let currentIndex = 0
+      const animateStep = () => {
+        if (currentIndex < itemStates.value.length) {
+          itemStates.value[currentIndex].visible = true
+          currentIndex++
+          if (currentIndex < itemStates.value.length) {
+            animationTimeoutId = setTimeout(animateStep, 250)
+          } else {
+            animationTimeoutId = setTimeout(resolve, 200)
+          }
+        }
+      }
+      animationTimeoutId = setTimeout(animateStep, 50)
+    })
+  })
+}
+```
+
+**CSS 动画：**
+```scss
+.path-step {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 200ms ease, transform 200ms ease;
+
+  &.step-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+```
+
+### Message 4 实现
+
+**创建日期：** 2026-04-25
+
+**触发条件：** 用户点击 Message 3 的 confirm-button
+
+**ContentBlock 结构：**
+```typescript
+{
+  type: 'bot',
+  content: [
+    '好的！分析完您的病情后，为您选择了前往 {{highlight}}急诊诊室{{/highlight}} 就诊！\n这是您的行进路程：\n',
+    { type: 'nav-path', route: '入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口' },
+    '\n有什么想修改的吗？直接说就好！\n如果没有，就确认吧！\n',
+    { type: 'confirm-button' }
+  ]
+}
+```
+
+**处理流程：**
+1. 用户点击 confirm-button
+2. `handleConfirmClick()` 添加用户"确认"消息
+3. `currentBotIndex++`，显示下一条 bot message
+4. `playAnimationSequence()` 依次播放各 block 动画
+
+**类型扩展：**
+- `ContentBlock` 添加 `nav-path` 类型
+- `ComponentRefs` 添加 `navPath` 字段
+- `VisibilityState` 添加 `navPath` 字段
+
+### Message 5 实现
+
+**创建日期：** 2026-04-25
+
+**触发条件：** 用户在输入框输入任意内容（不是点击 confirm-button）
+
+**触发流程：**
+```
+Message 4 显示 → 用户输入任意内容 → Message 5 显示
+```
+
+**ContentBlock 结构：**
+```typescript
+{
+  type: 'bot',
+  content: [
+    '我明白你的意思了！现在是新的行进路径：\n',
+    { type: 'nav-path', route: '入口+挂号处+急诊诊室+缴费处+药房+洗手间+出口' },
+    '\n还想修改什么吗？\n',
+    { type: 'confirm-button' }
+  ]
+}
+```
+
+**Message 5 vs Message 4 对比：**
+
+| 特征 | Message 4 | Message 5 |
+|------|----------|-----------|
+| nav-path 节点数 | 6 个 | 7 个（增加洗手间） |
+| highlight | 有 `{{highlight}}` | 无 |
+| 文本内容 | 告知就诊选择+行进路程 | 确认修改+新路径 |
+| 触发方式 | 用户输入 | 用户输入 |
+| 后续操作 | 点击 confirm-button → Message 6 | 用户输入 → 重新显示 Message 5 |
+
+**技术要点：**
+- 与 Message 4 共用相同的组件和动画机制
+- 路由节点更多（7个），NavPath 动画总时长约 = 50ms + 250ms * 6 + 200ms ≈ 1.75s
+- 无需高亮解析，ContentBlock 更简单
+- `sendMessage` 推进到下一条消息（currentBotIndex 4 → 5）
+- `handleConfirmClick` 在 currentBotIndex < 5 时不推进消息
+
+### Message 6 实现
+
+**创建日期：** 2026-04-25
+
+**触发条件：** 用户点击 Message 5 的 confirm-button
+
+**ContentBlock 结构：**
+```typescript
+{
+  type: 'bot',
+  content: ['好的！现在开始导航！']
+}
+```
+
+**技术要点：**
+- 纯文本消息，无特殊组件
+- Message 6 是对话序列的最后一条
+- `handleConfirmClick` 在 currentBotIndex >= 5 时推进消息（currentBotIndex 5 → 6）
+
+**完整对话流程：**
+```
+页面加载 → Message 1 (自动)
+用户输入 → Message 2
+点击 confirm-button → Message 3
+点击 confirm-button → Message 4
+用户输入 → Message 5 (修改路径)
+点击 confirm-button → Message 6 (开始导航)
+```
+
 </details>

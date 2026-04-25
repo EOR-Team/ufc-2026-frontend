@@ -293,6 +293,8 @@ $background: #f7fafb;
   justify-content: space-between;
   cursor: pointer;
   transition: all 300ms ease;
+  text-decoration: none;
+  color: inherit;
 
   &:hover {
     background: $surface-container-lowest;

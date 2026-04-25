@@ -32,7 +32,7 @@ const goBack = () => {
 
     <h1 class="header-title">{{ title }}</h1>
 
-    <router-link v-if="showSettings" to="/settings">
+    <router-link v-if="showSettings" to="/settings" class="settings-link">
       <button class="header-btn settings-btn">
         <v-icon size="24">mdi-cog</v-icon>
       </button>
@@ -42,15 +42,19 @@ const goBack = () => {
 </template>
 
 <style scoped lang="scss">
+$primary: #00606d;
+$surface-container-low: #f1f4f5;
+$on-surface: #181c1d;
+
 .app-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 50;
-  background: rgba(var(--color-surface), 0.8);
+  background: rgba(#f7fafb, 0.8);
   backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 40px rgba($on-surface, 0.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,11 +69,11 @@ const goBack = () => {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--color-primary);
+  color: $primary;
   transition: all 200ms ease;
 
   &:hover {
-    background: var(--color-surface-container-low);
+    background: $surface-container-low;
   }
 
   &:active {
@@ -86,9 +90,14 @@ const goBack = () => {
   font-family: 'Manrope', sans-serif;
   font-weight: 700;
   font-size: 1.125rem;
-  color: var(--color-primary);
+  color: $primary;
   letter-spacing: -0.02em;
   flex: 1;
   text-align: center;
+}
+
+.settings-link {
+  text-decoration: none;
+  color: inherit;
 }
 </style>

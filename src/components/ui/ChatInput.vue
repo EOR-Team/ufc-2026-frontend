@@ -45,6 +45,15 @@ const send = () => {
 </template>
 
 <style scoped lang="scss">
+$primary: #00606d;
+$primary-container: #007b8b;
+$surface-container-high: #e5e9ea;
+$on-surface: #181c1d;
+$on-surface-variant: #3e494b;
+$on-primary: #ffffff;
+$outline: #6e797b;
+$background: #f7fafb;
+
 .chat-input-wrapper {
   position: fixed;
   bottom: 0;
@@ -52,7 +61,7 @@ const send = () => {
   right: 0;
   z-index: 40;
   padding: 1.5rem 1rem 2rem;
-  background: linear-gradient(to top, var(--color-background) 80%, transparent);
+  background: linear-gradient(to top, $background 80%, transparent);
   pointer-events: none;
 
   @media (min-width: 768px) {
@@ -70,10 +79,10 @@ const send = () => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.5rem 0.5rem 1rem;
-  background: var(--color-surface-container-high);
+  background: $surface-container-high;
   border-radius: 9999px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid rgba(var(--color-outline), 0.15);
+  box-shadow: 0 4px 12px rgba($on-surface, 0.06);
+  border: 1px solid rgba($outline, 0.15);
   pointer-events: auto;
 }
 
@@ -84,10 +93,10 @@ const send = () => {
   outline: none;
   font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
-  color: var(--color-on-surface);
+  color: $on-surface;
 
   &::placeholder {
-    color: rgba(var(--color-on-surface-variant), 0.6);
+    color: rgba($on-surface-variant, 0.6);
   }
 }
 
@@ -97,10 +106,10 @@ const send = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
-  color: var(--color-on-primary);
+  background: linear-gradient(135deg, $primary 0%, $primary-container 100%);
+  color: $on-primary;
   border-radius: 50%;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba($on-surface, 0.08);
   transition: all 300ms ease;
   flex-shrink: 0;
 
@@ -109,7 +118,7 @@ const send = () => {
   }
 
   &:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 24px rgba($on-surface, 0.12);
   }
 }
 </style>

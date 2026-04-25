@@ -135,12 +135,15 @@ defineExpose({
 </template>
 
 <style scoped lang="scss">
+$on-surface: #181c1d;
+$on-surface-variant: #3e494b;
+
 .confirmation-list {
   list-style: disc inside;
   margin: 0.75rem 0;
   padding: 0.5rem 0;
-  border-top: 1px solid rgba(var(--color-on-surface), 0.08);
-  border-bottom: 1px solid rgba(var(--color-on-surface), 0.08);
+  border-top: 1px solid rgba($on-surface, 0.08);
+  border-bottom: 1px solid rgba($on-surface, 0.08);
   opacity: 0;
   transition: opacity 250ms ease;
 
@@ -164,11 +167,11 @@ defineExpose({
 
   .label {
     font-weight: 500;
-    color: var(--color-on-surface);
+    color: $on-surface;
   }
 
   .value {
-    color: var(--color-on-surface-variant);
+    color: $on-surface-variant;
   }
 }
 </style>

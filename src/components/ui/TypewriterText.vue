@@ -22,9 +22,45 @@ const emit = defineEmits<{
 interface CharState {
   text: string
   fading: boolean
+  highlighted: boolean
+}
+
+// Parse content with {{highlight}}...{{/highlight}} markers
+const parseHighlightedText = (content: string): { text: string; highlighted: boolean }[] => {
+  const segments: { text: string; highlighted: boolean }[] = []
+  const regex = /\{\{highlight\}\}(.*?)\{\{\/highlight\}\}/g
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(content)) !== null) {
+    // Add text before the highlight marker
+    if (match.index > lastIndex) {
+      segments.push({
+        text: content.slice(lastIndex, match.index),
+        highlighted: false
+      })
+    }
+    // Add the highlighted text
+    segments.push({
+      text: match[1],
+      highlighted: true
+    })
+    lastIndex = regex.lastIndex
+  }
+
+  // Add remaining text after last highlight marker
+  if (lastIndex < content.length) {
+    segments.push({
+      text: content.slice(lastIndex),
+      highlighted: false
+    })
+  }
+
+  return segments
 }
 
 const displayedChars = ref<CharState[]>([])
+const parsedSegments = ref<{ text: string; highlighted: boolean }[]>([])
 const isAnimating = ref(false)
 
 // Refs for DOM elements
@@ -34,6 +70,8 @@ const contentRef = ref<HTMLElement | null>(null)
 // Animation state
 let animationFrameId: number | null = null
 let charIndex = 0
+let segmentIndex = 0
+let currentSegmentCharIndex = 0
 
 // Font for canvas measurement
 const FONT_SPEC = '14px Inter'
@@ -59,6 +97,7 @@ const start = (): Promise<void> => {
 
     charIndex = 0
     displayedChars.value = []
+    parsedSegments.value = parseHighlightedText(props.content)
     isAnimating.value = true
 
     const onComplete = () => {
@@ -82,27 +121,37 @@ const initialize = () => {
 
 // Type next character with fade-in effect
 const typeNextChar = (onComplete?: () => void) => {
-  if (charIndex >= props.content.length) {
-    isAnimating.value = false
-    onComplete?.()
-    return
+  // Find the next character to display
+  while (segmentIndex < parsedSegments.value.length) {
+    const segment = parsedSegments.value[segmentIndex]
+    if (currentSegmentCharIndex < segment.text.length) {
+      // We have a character to display in the current segment
+      const char = segment.text[currentSegmentCharIndex]
+
+      displayedChars.value.push({
+        text: char,
+        fading: true,
+        highlighted: segment.highlighted
+      })
+
+      currentSegmentCharIndex++
+
+      // Schedule next character
+      const duration = getRandomDuration()
+      animationFrameId = window.setTimeout(() => {
+        typeNextChar(onComplete)
+      }, duration)
+      return
+    } else {
+      // Move to next segment
+      segmentIndex++
+      currentSegmentCharIndex = 0
+    }
   }
 
-  const char = props.content[charIndex]
-
-  // Add new character with fading state
-  displayedChars.value.push({
-    text: char,
-    fading: true
-  })
-
-  charIndex++
-
-  // Schedule next character
-  const duration = getRandomDuration()
-  animationFrameId = window.setTimeout(() => {
-    typeNextChar(onComplete)
-  }, duration)
+  // All characters have been displayed
+  isAnimating.value = false
+  onComplete?.()
 }
 
 // Handle window resize
@@ -133,7 +182,7 @@ defineExpose({
       v-for="(char, i) in displayedChars"
       :key="i"
       class="typewriter-char"
-      :class="{ 'fade-in': char.fading }"
+      :class="{ 'fade-in': char.fading, 'highlight-inline': char.highlighted }"
       @animationend="char.fading = false"
     >{{ char.text }}</span>
   </div>
@@ -156,6 +205,11 @@ defineExpose({
 
 .fade-in {
   animation: char-fade-in 180ms ease-out forwards;
+}
+
+.highlight-inline {
+  color: #00606d;
+  font-weight: 500;
 }
 
 @keyframes char-fade-in {

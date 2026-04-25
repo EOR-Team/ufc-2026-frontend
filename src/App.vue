@@ -1,31 +1,33 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-import { useTheme } from 'vuetify'
+import { onMounted } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+import vuetify from '@/plugins/vuetify'
 
-const theme = useTheme()
+const themeStore = useThemeStore()
+
+// Apply saved theme on mount
+onMounted(() => {
+  themeStore.applyToVuetify(vuetify.theme)
+})
 </script>
 
 <template>
   <v-app>
-    <v-app-bar color="primary" elevation="2">
-      <v-app-bar-title>UFC 2026</v-app-bar-title>
-      <v-spacer></v-spacer>
-      <v-btn to="/" variant="text">Home</v-btn>
-      <v-btn to="/about" variant="text">About</v-btn>
-    </v-app-bar>
-    <v-main>
-      <RouterView />
-    </v-main>
-    <v-footer color="grey-darken-3" class="text-center d-flex flex-column">
-      <div class="text-body-2 text-medium-emphasis">
-        UFC 2026 - Ultimate Fighting Championship Tracker
-      </div>
-    </v-footer>
+    <RouterView />
   </v-app>
 </template>
 
 <style>
 html {
   overflow-y: auto;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f7fafb;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Manrope', sans-serif;
 }
 </style>

@@ -8,6 +8,21 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/HomePage.vue'),
   },
   {
+    path: '/triage-chat',
+    name: 'triage-chat',
+    component: () => import('@/pages/TriageChat.vue'),
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('@/pages/SettingsPage.vue'),
+  },
+  {
+    path: '/recovery-chat',
+    name: 'recovery-chat',
+    component: () => import('@/pages/RecoveryChatPage.vue'),
+  },
+  {
     path: '/about',
     name: 'about',
     component: () => import('@/pages/About.vue'),

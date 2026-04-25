@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useThemeStore } from '@/stores/theme'
+import vuetify from '@/plugins/vuetify'
+
+const themeStore = useThemeStore()
+
+// Apply saved theme on mount
+onMounted(() => {
+  themeStore.applyToVuetify(vuetify.theme)
+})
 </script>
 
 <template>

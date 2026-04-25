@@ -440,7 +440,7 @@ Message 4 显示 → 用户输入任意内容 → Message 5 显示
 ```
 页面加载 → Message 1 (自动)
 用户输入 → Message 2
-点击 confirm-button → Message 3
+用户输入 → Message 3
 点击 confirm-button → Message 4
 用户输入 → Message 5 (修改路径)
 点击 confirm-button → Message 6 (开始导航)

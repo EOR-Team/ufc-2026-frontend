@@ -531,13 +531,15 @@ interface ItemState {
 | Message 6 | 纯文本 | 无 | confirm-button 点击 | 低（单行） |
 
 **消息触发逻辑：**
-- `sendMessage`：用户输入时调用，推进到下一条 bot 消息
-- `handleConfirmClick`：confirm-button 点击时调用，**仅在 currentBotIndex >= 5 时推进消息**
-- 这意味着：
-  - Message 2 由 `sendMessage` 推进（currentBotIndex 0 → 1）
-  - Message 3-4 由 `handleConfirmClick` 推进（currentBotIndex 1→2, 2→3, 3→4）
-  - Message 5 由 `sendMessage` 推进（currentBotIndex 4 → 5）
-  - Message 6 由 `handleConfirmClick` 推进（currentBotIndex 5 → 6）
+- `sendMessage`：用户输入时调用，始终推进到下一条 bot 消息
+- `handleConfirmClick`：confirm-button 点击时调用，**仅在 currentBotIndex === 3 或 === 5 时推进消息**
+- 完整流程：
+  - Message 1 (currentBotIndex=0)：页面加载自动
+  - Message 2 (currentBotIndex=1)：`sendMessage` 推进
+  - Message 3 (currentBotIndex=2)：`sendMessage` 推进
+  - Message 4 (currentBotIndex=3)：`handleConfirmClick` 推进
+  - Message 5 (currentBotIndex=4)：`sendMessage` 推进
+  - Message 6 (currentBotIndex=5)：`handleConfirmClick` 推进
 
 **关键组件动画总结：**
 

@@ -216,7 +216,7 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
 }
 
 // Handle confirm button click
-// Only advances to next message when currentBotIndex >= 5 (i.e., on Message 5+)
+// 仅在 Message 4(currentBotIndex=3) 和 Message 6(currentBotIndex=5) 时推进
 const handleConfirmClick = async (msgIdx: number) => {
   try {
     if (isAnimating.value) return
@@ -227,20 +227,15 @@ const handleConfirmClick = async (msgIdx: number) => {
       content: ['确认']
     })
 
-    // Only advance to next bot message when on Message 5 or later
-    // This allows user input to trigger Message 5, while confirm button triggers Message 6
-    if (currentBotIndex.value >= 5) {
+    // Message 4 (currentBotIndex=3) 和 Message 6 (currentBotIndex=5) 由 confirm-button 触发
+    if (currentBotIndex.value === 3 || currentBotIndex.value === 5) {
       const nextBotIndex = currentBotIndex.value + 1
 
       if (nextBotIndex < botMessagesData.length) {
-        // Show the next bot message first (without animation)
         displayedMessages.value.push(botMessagesData[nextBotIndex])
         currentBotIndex.value = nextBotIndex
 
-        // Wait for DOM update
         await nextTick()
-
-        // Start animation sequence (use displayedMessages length - 1 as the key)
         const displayedBotIndex = displayedMessages.value.length - 1
         await playAnimationSequence(displayedBotIndex)
       }

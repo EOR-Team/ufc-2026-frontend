@@ -1,12 +1,8 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+import type { SettingsState } from '@/types/stores'
 
 const STORAGE_KEY = 'ufc-settings'
-
-interface SettingsState {
-  useOnlineModel: boolean
-  useVoiceReading: boolean
-}
 
 function loadFromStorage(): Partial<SettingsState> {
   try {
@@ -20,20 +16,42 @@ function loadFromStorage(): Partial<SettingsState> {
   return {}
 }
 
-function saveToStorage(settings: SettingsState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-}
-
 export const useSettingsStore = defineStore('settings', () => {
   const stored = loadFromStorage()
 
   const useOnlineModel = ref(stored.useOnlineModel ?? true)
   const useVoiceReading = ref(stored.useVoiceReading ?? false)
 
+  // Getters
+  const isOnlineModelUsed = computed(() => useOnlineModel.value)
+  const isVoiceReadingEnabled = computed(() => useVoiceReading.value)
+
+  // Actions
+  function toggleOnlineModel() {
+    useOnlineModel.value = !useOnlineModel.value
+  }
+
+  function setOnlineModel(value: boolean) {
+    useOnlineModel.value = value
+  }
+
+  function toggleVoiceReading() {
+    useVoiceReading.value = !useVoiceReading.value
+  }
+
+  function setVoiceReading(value: boolean) {
+    useVoiceReading.value = value
+  }
+
+  // Persist changes
   watch(
     () => ({ useOnlineModel: useOnlineModel.value, useVoiceReading: useVoiceReading.value }),
     (settings) => {
-      saveToStorage(settings)
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+      } catch {
+        // ignore storage errors
+      }
     },
     { deep: true }
   )
@@ -41,5 +59,11 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     useOnlineModel,
     useVoiceReading,
+    isOnlineModelUsed,
+    isVoiceReadingEnabled,
+    toggleOnlineModel,
+    setOnlineModel,
+    toggleVoiceReading,
+    setVoiceReading,
   }
 })

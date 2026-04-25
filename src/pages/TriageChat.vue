@@ -1,88 +1,201 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import AppHeader from '@/components/ui/AppHeader.vue'
 import ChatInput from '@/components/ui/ChatInput.vue'
+import TypewriterText from '@/components/ui/TypewriterText.vue'
+import ConfirmationList from '@/components/ui/ConfirmationList.vue'
+import ConfirmButton from '@/components/ui/ConfirmButton.vue'
 
 const settings = useSettingsStore()
 
+type ContentBlock =
+  | string
+  | { type: 'confirmation-list'; items: { label: string; value: string }[] }
+  | { type: 'confirm-button' }
+
 interface Message {
   type: 'bot' | 'user'
-  content: string
-  hasPath?: boolean
-  pathSteps?: string[]
-  pathHighlights?: number[]
-  showContinueBtn?: boolean
-  isConfirmationList?: boolean
-  listItems?: { label: string; value: string }[]
+  content: ContentBlock[]
 }
 
-const messages = ref<Message[]>([
+// Bot messages data
+const botMessagesData: Message[] = [
   {
     type: 'bot',
-    content: '您好，我是您的智能导诊助手！为了给您提供更加准确的导诊服务，请您先描述一下自己前来就诊的原因、当前的感受等信息哦！'
-  },
-  {
-    type: 'user',
-    content: '我有点轻微头疼和发烧，两三天了，一直不是特别舒服所以来看病了。'
+    content: ['您好，我是您的智能导诊助手！为了给您提供更加准确的导诊服务，请您先描述一下自己前来就诊的原因、当前的感受等信息哦！']
   },
   {
     type: 'bot',
-    content: '我明白你的意思了！请确认一下您的当前状况，这有助于我们对您的病情进行建模：',
-    isConfirmationList: true,
-    listItems: [
-      { label: '不适部位：', value: '头部疼痛；发烧' },
-      { label: '严重程度：', value: '轻微' },
-      { label: '持续时间：', value: '两三天' },
-      { label: '具体描述：', value: '一直不是特别舒服' },
-      { label: '其他信息：', value: '暂无' }
+    content: [
+      '我明白你的意思了！',
+      { type: 'confirmation-list', items: [
+        { label: '不适部位：', value: '头部疼痛；发烧' },
+        { label: '严重程度：', value: '轻微' },
+        { label: '持续时间：', value: '两三天' },
+        { label: '具体描述：', value: '一直不是特别舒服' },
+        { label: '其他信息：', value: '暂无' }
+      ]},
+      '请确认你的当前状况，这有助于我们对您的病情进行建模。',
+      '如果觉得没问题，直接确认就行；',
+      '如果觉得和你的感觉不同，就进行更改，直到完全符合你的感觉。',
+      { type: 'confirm-button' }
     ]
-  },
-  {
-    type: 'user',
-    content: '确认'
-  },
-  {
-    type: 'bot',
-    content: '好的！分析完您的病情后，为您选择了前往急诊诊室就诊！\n\n这是您的行进路程：',
-    hasPath: true,
-    pathSteps: ['入口（当前地点）', '挂号处', '急诊诊室', '缴费处', '药房', '出口'],
-    pathHighlights: [0, 2, 5]
-  },
-  {
-    type: 'user',
-    content: '拿完药之后去上个洗手间。'
-  },
-  {
-    type: 'bot',
-    content: '我明白你的意思了！现在是新的行进路径：',
-    hasPath: true,
-    pathSteps: ['入口', '挂号处', '急诊诊室', '缴费处', '药房', '洗手间', '出口'],
-    pathHighlights: [0, 2, 5, 6],
-    showContinueBtn: true
-  },
-  {
-    type: 'user',
-    content: '确认'
-  },
-  {
-    type: 'bot',
-    content: '好的！开始导航！... 到达第一个目的地：挂号处！如果要继续导航，点击下方继续按钮！',
-    showContinueBtn: true
   }
-])
+]
 
-const sendMessage = (content: string) => {
+// Messages to display (only bot messages that have been "unlocked")
+const displayedMessages = ref<Message[]>([botMessagesData[0]])
+
+// Current bot message index (which bot message we're on)
+const currentBotIndex = ref(0)
+
+// Animation state
+const isAnimating = ref(false)
+
+// Auto-play animation for Message 1 on page load
+onMounted(async () => {
+  await nextTick()
+  await playAnimationSequence(0)
+})
+
+// Component refs organized by message index
+interface ConfirmationListExposed {
+  start: () => Promise<void>
+}
+
+interface ConfirmButtonExposed {
+  start: () => Promise<void>
+}
+
+interface ComponentRefs {
+  typewriters: InstanceType<typeof TypewriterText>[]
+  confirmationList: ConfirmationListExposed | null
+  confirmButton: ConfirmButtonExposed | null
+}
+
+// Track which components are visible (for animation)
+interface VisibilityState {
+  confirmationList: boolean
+  confirmButton: boolean
+}
+
+const componentRefsMap = ref<Map<number, ComponentRefs>>(new Map())
+const visibilityMap = ref<Map<number, VisibilityState>>(new Map())
+
+// Set visibility state for a message index
+const setVisibility = (msgIdx: number, state: VisibilityState) => {
+  visibilityMap.value.set(msgIdx, state)
+}
+
+// Get visibility state for a message index
+const getVisibility = (msgIdx: number): VisibilityState => {
+  return visibilityMap.value.get(msgIdx) || { confirmationList: false, confirmButton: false }
+}
+
+// Send message handler
+const sendMessage = async (content: string) => {
   try {
-    if (!content) return
+    if (!content || isAnimating.value) return
 
-    messages.value.push({
+    // Add user message
+    displayedMessages.value.push({
       type: 'user',
-      content
+      content: [content]
     })
+
+    // Move to next bot message
+    const nextBotIndex = currentBotIndex.value + 1
+
+    // If there are more bot messages
+    if (nextBotIndex < botMessagesData.length) {
+      // Show the next bot message first (without animation)
+      displayedMessages.value.push(botMessagesData[nextBotIndex])
+      currentBotIndex.value = nextBotIndex
+
+      // Wait for DOM update
+      await nextTick()
+
+      // Start animation sequence (use displayedMessages length - 1 as the key)
+      const displayedBotIndex = displayedMessages.value.length - 1
+      await playAnimationSequence(displayedBotIndex)
+    }
   } catch (error) {
     console.error('Failed to send message:', error)
   }
+}
+
+// Set component refs for a specific message index
+const setComponentRefs = (msgIndex: number, refs: ComponentRefs) => {
+  componentRefsMap.value.set(msgIndex, refs)
+}
+
+// Get component refs for a specific message index
+const getComponentRefs = (msgIndex: number): ComponentRefs | undefined => {
+  return componentRefsMap.value.get(msgIndex)
+}
+
+// Play animation sequence for a specific bot message
+const playAnimationSequence = async (displayedBotIndex: number) => {
+  isAnimating.value = true
+
+  const refs = getComponentRefs(displayedBotIndex)
+
+  if (!refs) {
+    isAnimating.value = false
+    return
+  }
+
+  // Initialize visibility state - all components hidden initially
+  setVisibility(displayedBotIndex, { confirmationList: false, confirmButton: false })
+
+  // Get the actual message from displayedMessages
+  const message = displayedMessages.value[displayedBotIndex]
+  if (!message || message.type !== 'bot') {
+    isAnimating.value = false
+    return
+  }
+
+  let typewriterIdx = 0
+
+  for (let i = 0; i < message.content.length; i++) {
+    const block = message.content[i]
+
+    if (typeof block === 'string') {
+      // TypewriterText animation
+      const typewriterRef = refs.typewriters[typewriterIdx]
+      if (typewriterRef) {
+        await typewriterRef.start()
+      }
+      typewriterIdx++
+    } else if (block.type === 'confirmation-list') {
+      // Set visibility to true before starting animation
+      const currentVis = getVisibility(displayedBotIndex)
+      setVisibility(displayedBotIndex, { ...currentVis, confirmationList: true })
+      if (refs.confirmationList) {
+        await refs.confirmationList.start()
+      }
+    } else if (block.type === 'confirm-button') {
+      // Set visibility to true before starting animation
+      const currentVis = getVisibility(displayedBotIndex)
+      setVisibility(displayedBotIndex, { ...currentVis, confirmButton: true })
+      if (refs.confirmButton) {
+        await refs.confirmButton.start()
+      }
+    }
+
+    // Wait 100ms before next animation (except for the last block)
+    if (i < message.content.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+
+  isAnimating.value = false
+}
+
+// Check if content should use typewriter (string-only message)
+const shouldUseTypewriter = (msg: Message): boolean => {
+  return msg.type === 'bot' && msg.content.every(block => typeof block === 'string')
 }
 </script>
 
@@ -93,58 +206,84 @@ const sendMessage = (content: string) => {
 
     <!-- Chat Messages -->
     <div class="chat-container">
-      <div
-        v-for="(msg, idx) in messages"
-        :key="idx"
-        :class="['message-wrapper', msg.type === 'user' ? 'user-wrapper' : 'bot-wrapper']"
-      >
-        <!-- Bot Message -->
-        <template v-if="msg.type === 'bot'">
+      <template v-for="(msg, idx) in displayedMessages" :key="idx">
+        <!-- Bot message -->
+        <div
+          v-if="msg.type === 'bot'"
+          class="message-wrapper bot-wrapper"
+        >
           <div class="bot-avatar">
             <v-icon size="16" style="font-variation-settings: 'FILL' 1">mdi-robot</v-icon>
           </div>
           <div class="message-bubble bot-bubble">
-            <p v-if="msg.content" class="message-text" style="white-space: pre-line">{{ msg.content }}</p>
-
-            <!-- Confirmation List -->
-            <ul v-if="msg.isConfirmationList && msg.listItems" class="confirmation-list">
-              <li v-for="(item, i) in msg.listItems" :key="i">
-                <span class="label">{{ item.label }}</span>
-                <span class="value">{{ item.value }}</span>
-              </li>
-            </ul>
-
-            <!-- Navigation Path -->
-            <div v-if="msg.hasPath && msg.pathSteps" class="nav-path">
-              <template v-for="(step, i) in msg.pathSteps" :key="i">
-                <span
-                  :class="['path-step', msg.pathHighlights?.includes(i) ? 'highlight' : '', i === 5 ? 'secondary' : '']"
-                >
-                  {{ step }}
-                </span>
-                <span v-if="i < msg.pathSteps.length - 1" class="path-arrow">
-                  <v-icon size="12" color="#6e797b">mdi-arrow-right</v-icon>
-                </span>
+            <!-- Simple text-only message: use typewriter for full content -->
+            <template v-if="shouldUseTypewriter(msg)">
+              <TypewriterText
+                :ref="el => {
+                  if (el) {
+                    const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                    refs.typewriters = [el as InstanceType<typeof TypewriterText>]
+                    setComponentRefs(idx, refs)
+                  }
+                }"
+                :content="(msg.content as string[]).join('')"
+              />
+            </template>
+            <!-- Rich content: render each block -->
+            <template v-else>
+              <template v-for="(block, bIdx) in msg.content" :key="bIdx">
+                <!-- String: render as typewriter text -->
+                <TypewriterText
+                  v-if="typeof block === 'string'"
+                  :ref="el => {
+                    if (el) {
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      refs.typewriters.push(el as InstanceType<typeof TypewriterText>)
+                      setComponentRefs(idx, refs)
+                    }
+                  }"
+                  :content="block"
+                />
+                <!-- Confirmation List -->
+                <ConfirmationList
+                  v-else-if="block.type === 'confirmation-list'"
+                  :ref="el => {
+                    if (el) {
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      refs.confirmationList = el as unknown as ConfirmationListExposed
+                      setComponentRefs(idx, refs)
+                    }
+                  }"
+                  :items="block.items"
+                  :visible="getVisibility(idx).confirmationList"
+                />
+                <!-- Confirm Button -->
+                <ConfirmButton
+                  v-else-if="block.type === 'confirm-button'"
+                  :ref="el => {
+                    if (el) {
+                      const refs = getComponentRefs(idx) || { typewriters: [], confirmationList: null, confirmButton: null }
+                      refs.confirmButton = el as unknown as ConfirmButtonExposed
+                      setComponentRefs(idx, refs)
+                    }
+                  }"
+                  :visible="getVisibility(idx).confirmButton"
+                />
               </template>
-            </div>
-
-            <!-- Continue Button -->
-            <button v-if="msg.showContinueBtn" class="continue-btn">
-              <span>继续</span>
-              <v-icon size="16">mdi-arrow-right</v-icon>
-            </button>
+            </template>
           </div>
-        </template>
-
-        <!-- User Message -->
-        <template v-else>
+        </div>
+        <!-- User message -->
+        <div
+          v-else
+          class="message-wrapper user-wrapper"
+        >
           <div class="message-bubble user-bubble">
-            <span class="message-text">{{ msg.content }}</span>
+            <span class="user-message-text">{{ (msg.content as string[]).join('') }}</span>
           </div>
-        </template>
-      </div>
+        </div>
+      </template>
     </div>
-
 
     <!-- Chat Input -->
     <ChatInput
@@ -242,28 +381,12 @@ $secondary: #006a63;
   line-height: 1.6;
 }
 
-// Confirmation List
-.confirmation-list {
-  list-style: disc inside;
-  margin: 0.75rem 0;
-  padding: 0.5rem 0;
-  border-top: 1px solid rgba($on-surface, 0.08);
-  border-bottom: 1px solid rgba($on-surface, 0.08);
-
-  li {
-    font-size: 0.875rem;
-    line-height: 1.6;
-    margin-bottom: 0.25rem;
-
-    .label {
-      font-weight: 500;
-      color: $on-surface;
-    }
-
-    .value {
-      color: $on-surface-variant;
-    }
-  }
+.user-message-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 // Navigation Path
@@ -320,5 +443,4 @@ $secondary: #006a63;
     box-shadow: 0 8px 24px rgba($on-surface, 0.12);
   }
 }
-
 </style>

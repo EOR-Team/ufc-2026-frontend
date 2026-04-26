@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
+import { ref, nextTick, onMounted } from 'vue'
 import AppHeader from '@/components/ui/AppHeader.vue'
 import ChatInput from '@/components/ui/ChatInput.vue'
 import TypewriterText from '@/components/ui/TypewriterText.vue'
@@ -9,84 +8,59 @@ import ConfirmButton from '@/components/ui/ConfirmButton.vue'
 import NavPath from '@/components/ui/NavPath.vue'
 import type { ChatMessage } from '~/types/chat'
 import type { ComponentRefs, VisibilityState, ConfirmationListExposed, ConfirmButtonExposed, NavPathExposed } from '~/types/components'
+import {
+  ConversationState,
+  type ConversationContext,
+  getInitialContext,
+  transition,
+  formatConditionForConclusion,
+  getRecentConclusions,
+} from '@/types/conversation'
+import {
+  collectCondition,
+  selectClinic,
+  collectRequirement,
+  patchRoute,
+} from '@/services/triageApi'
+import type { RequirementSummary } from '@/services/triageApi'
 
-const settings = useSettingsStore()
+// Clinic ID to name mapping
+const CLINIC_NAME_MAP: Record<string, string> = {
+  emergency_clinic: '急诊室',
+  surgery_clinic: '外科诊室',
+  internal_clinic: '内科诊室',
+  pediatric_clinic: '儿科诊室',
+}
 
-// Bot messages data
-const botMessagesData: ChatMessage[] = [
-  {
-    type: 'bot',
-    content: ['您好，我是您的智能导诊助手！为了给您提供更加准确的导诊服务，请您先描述一下自己前来就诊的原因、当前的感受等信息哦！']
-  },
-  {
-    type: 'bot',
-    content: [
-      '我明白你的意思了！',
-      { type: 'confirmation-list', items: [
-        { label: '不适部位：', value: '头部疼痛；发烧' },
-        { label: '严重程度：', value: '轻微' },
-        { label: '持续时间：', value: '两三天' },
-        { label: '具体描述：', value: '一直不是特别舒服' },
-        { label: '其他信息：', value: '暂无' }
-      ]},
-      '请确认你的当前状况，这有助于我们对您的病情进行建模。',
-      '如果觉得没问题，直接确认就行；',
-      '如果觉得和你的感觉不同，就进行更改，直到完全符合你的感觉。',
-      { type: 'confirm-button' }
-    ]
-  },
-  {
-    type: 'bot',
-    content: [
-      '我明白了！您说 {{highlight}}三四天{{/highlight}}。所以当前状况应该是：',
-      { type: 'confirmation-list', items: [
-        { label: '不适部位：', value: '头部疼痛；发烧' },
-        { label: '严重程度：', value: '轻微' },
-        { label: '持续时间：', value: '三四天' },
-        { label: '具体描述：', value: '一直不是特别舒服' },
-        { label: '其他信息：', value: '暂无' }
-      ]},
-      '还有什么问题吗？',
-      { type: 'confirm-button' }
-    ]
-  },
-  {
-    type: 'bot',
-    content: [
-      '好的！分析完您的病情后，为您选择了前往 {{highlight}}急诊诊室{{/highlight}} 就诊！\n这是您的行进路程：\n',
-      { type: 'nav-path', route: '入口（当前地点）+挂号处+急诊诊室+缴费处+药房+出口' },
-      '\n有什么想修改的吗？直接说就好！\n如果没有，就确认吧！\n',
-      { type: 'confirm-button' }
-    ]
-  },
-  {
-    type: 'bot',
-    content: [
-      '我明白你的意思了！现在是新的行进路径：\n',
-      { type: 'nav-path', route: '入口+挂号处+急诊诊室+缴费处+药房+洗手间+出口' },
-      '\n还想修改什么吗？\n',
-      { type: 'confirm-button' }
-    ]
-  },
-  {
-    type: 'bot',
-    content: ['好的！现在开始导航！']
-  }
-]
+// Conversation state
+const conversation = ref<ConversationContext>(getInitialContext())
 
-// Messages to display (only bot messages that have been "unlocked")
-const displayedMessages = ref<ChatMessage[]>([botMessagesData[0]])
+// Messages to display
+const displayedMessages = ref<ChatMessage[]>([])
 
-// Current bot message index (which bot message we're on)
-const currentBotIndex = ref(0)
+// Loading state
+const isLoading = ref(false)
+
+// Error state
+const errorMessage = ref<string | null>(null)
 
 // Animation state
 const isAnimating = ref(false)
 
-// Auto-play animation for Message 1 on page load
+// Greeting message shown on load
+const greetingMessage: ChatMessage = {
+  type: 'bot',
+  content: ['您好，我是您的智能导诊助手！为了给您提供更加准确的导诊服务，请您先描述一下自己前来就诊的原因、当前的感受等信息哦！'],
+}
+
+// Auto-play greeting on page load
 onMounted(async () => {
+  displayedMessages.value.push(greetingMessage)
+  // Wait for next tick to ensure template refs are set before playing animation
   await nextTick()
-  await playAnimationSequence(0)
+  requestAnimationFrame(() => {
+    playAnimationSequence(0)
+  })
 })
 
 // Component refs organized by message index
@@ -103,36 +77,310 @@ const getVisibility = (msgIdx: number): VisibilityState => {
   return visibilityMap.value.get(msgIdx) || { confirmationList: false, confirmButton: false, navPath: false }
 }
 
-// Send message handler
+function isConfirmationMessage(content: string): boolean {
+  const normalized = content.replace(/[\s！!。,.，？?；;:：]/g, '')
+
+  if (!normalized) {
+    return false
+  }
+
+  const rejectPhrases = ['不确认', '不要确认', '没确认', '不行', '不对', '不是的']
+  if (rejectPhrases.some(phrase => normalized.includes(phrase))) {
+    return false
+  }
+
+  const confirmPhrases = ['没问题', '确认', '确认了', '是的', '好的', '可以', '好']
+  return confirmPhrases.includes(normalized)
+}
+
+function mergeRequirements(
+  existing: RequirementSummary[],
+  incoming: RequirementSummary[]
+): RequirementSummary[] {
+  const merged = [...existing]
+
+  for (const requirement of incoming) {
+    const isDuplicate = merged.some(
+      (item) => item.when === requirement.when && item.what === requirement.what
+    )
+
+    if (!isDuplicate) {
+      merged.push(requirement)
+    }
+  }
+
+  return merged
+}
+
+// Send message handler - routes based on conversation state
 const sendMessage = async (content: string) => {
   try {
-    if (!content || isAnimating.value) return
+    if (!content || isAnimating.value || isLoading.value) return
+
+    errorMessage.value = null
 
     // Add user message
     displayedMessages.value.push({
       type: 'user',
-      content: [content]
+      content: [content],
     })
 
-    // Move to next bot message
-    const nextBotIndex = currentBotIndex.value + 1
+    await nextTick()
 
-    // If there are more bot messages
-    if (nextBotIndex < botMessagesData.length) {
-      // Show the next bot message first (without animation)
-      displayedMessages.value.push(botMessagesData[nextBotIndex])
-      currentBotIndex.value = nextBotIndex
-
-      // Wait for DOM update
-      await nextTick()
-
-      // Start animation sequence (use displayedMessages length - 1 as the key)
-      const displayedBotIndex = displayedMessages.value.length - 1
-      await playAnimationSequence(displayedBotIndex)
+    switch (conversation.value.state) {
+      case ConversationState.COLLECTING_CONDITION:
+        await handleCollectCondition(content)
+        break
+      case ConversationState.CONFIRMING_CONDITION:
+        await handleConfirmCondition(content)
+        break
+      case ConversationState.CONFIRMING_ROUTE:
+        await handleRouteModification(content)
+        break
+      default:
+        if (import.meta.env.DEV) {
+          console.warn('[TriageChat] Unexpected state for user message:', conversation.value.state)
+        }
     }
   } catch (error) {
     console.error('Failed to send message:', error)
+    showError('发送消息失败，请重试')
   }
+}
+
+// Handle condition collection (COLLECTING_CONDITION state)
+async function handleCollectCondition(description: string) {
+  isLoading.value = true
+
+  // Pass last 3 conclusions as history for context continuity
+  const previousConclusions = getRecentConclusions(conversation.value.conclusions, 3)
+  const result = await collectCondition(description, previousConclusions)
+
+  isLoading.value = false
+
+  if (!result.success || !result.data) {
+    showError(result.error || '解析症状失败')
+    return
+  }
+
+  // Format and save the condition to conclusions history
+  const formatted = formatConditionForConclusion(result.data.structured_condition)
+  conversation.value.conclusions.push(formatted)
+
+  // Store condition and transition to confirming
+  conversation.value.condition = result.data.structured_condition
+  conversation.value.state = transition(conversation.value.state, ConversationState.CONFIRMING_CONDITION)
+
+  // Build confirmation message
+  const condition = result.data.structured_condition
+  const confirmationMessage: ChatMessage = {
+    type: 'bot',
+    content: [
+      '我明白你的意思了！',
+      {
+        type: 'confirmation-list',
+        items: [
+          { label: '不适部位：', value: condition.body_parts || condition.symptoms?.join('；') || '未提供' },
+          { label: '严重程度：', value: condition.severity || '未提供' },
+          { label: '持续时间：', value: condition.duration || '未提供' },
+        ],
+      },
+      '请确认你的当前状况，这有助于我们对您的病情进行建模。',
+      '如果觉得没问题，直接确认就行；',
+      '如果觉得和你的感觉不同，就进行更改，直到完全符合你的感觉。',
+      { type: 'confirm-button' },
+    ],
+  }
+
+  displayedMessages.value.push(confirmationMessage)
+  await nextTick()
+  await playAnimationSequence(displayedMessages.value.length - 1)
+}
+
+// Handle condition confirmation/modification (CONFIRMING_CONDITION state)
+async function handleConfirmCondition(content: string) {
+  // User wants to confirm - proceed to next phase
+  if (isConfirmationMessage(content)) {
+    await proceedToClinicSelection()
+    return
+  }
+
+  // User providing modifications - treat as new input, call API with history
+  isLoading.value = true
+
+  const previousConclusions = getRecentConclusions(conversation.value.conclusions, 3)
+  const result = await collectCondition(content, previousConclusions)
+
+  isLoading.value = false
+
+  if (!result.success || !result.data) {
+    showError(result.error || '解析症状失败')
+    return
+  }
+
+  // Format and save the NEW condition to conclusions (append, not replace)
+  const formatted = formatConditionForConclusion(result.data.structured_condition)
+  conversation.value.conclusions.push(formatted)
+
+  // Update condition and stay in CONFIRMING_CONDITION
+  conversation.value.condition = result.data.structured_condition
+
+  // Build new confirmation message
+  const condition = result.data.structured_condition
+  const confirmationMessage: ChatMessage = {
+    type: 'bot',
+    content: [
+      '我明白你的意思了！',
+      {
+        type: 'confirmation-list',
+        items: [
+          { label: '不适部位：', value: condition.body_parts || condition.symptoms?.join('；') || '未提供' },
+          { label: '严重程度：', value: condition.severity || '未提供' },
+          { label: '持续时间：', value: condition.duration || '未提供' },
+        ],
+      },
+      '请确认你的当前状况，这有助于我们对您的病情进行建模。',
+      '如果觉得没问题，直接确认就行；',
+      '如果觉得和你的感觉不同，就进行更改，直到完全符合你的感觉。',
+      { type: 'confirm-button' },
+    ],
+  }
+
+  displayedMessages.value.push(confirmationMessage)
+  await nextTick()
+  await playAnimationSequence(displayedMessages.value.length - 1)
+}
+
+// Proceed to clinic selection after condition is confirmed
+async function proceedToClinicSelection() {
+  if (!conversation.value.condition) return
+
+  isLoading.value = true
+
+  const condition = conversation.value.condition
+  const result = await selectClinic(
+    condition.symptoms.join('；'),
+    condition.duration,
+    condition.severity,
+    '' // description
+  )
+
+  isLoading.value = false
+
+  if (!result.success || !result.data) {
+    showError(result.error || '选择诊室失败')
+    return
+  }
+
+  // Store clinic info and transition
+  const clinicName = CLINIC_NAME_MAP[result.data.clinic_id] || result.data.clinic_id
+  conversation.value.clinicId = result.data.clinic_id
+  conversation.value.clinicName = clinicName
+  conversation.value.route = ['入口（当前地点）', '挂号处', clinicName, '缴费处', '药房', '出口']
+  conversation.value.state = transition(conversation.value.state, ConversationState.SELECTING_CLINIC)
+
+  // Show clinic selection result
+  const clinicMessage: ChatMessage = {
+    type: 'bot',
+    content: [
+      `好的！分析完您的病情后，为您选择了前往 {{highlight}}${clinicName}{{/highlight}} 就诊！\n这是您的行进路程：\n`,
+      { type: 'nav-path', route: conversation.value.route.join('+') },
+      '\n有什么想修改的吗？直接说就好！\n如果没有，就确认吧！\n',
+      { type: 'confirm-button' },
+    ],
+  }
+
+  // Transition to CONFIRMING_ROUTE after showing the nav path
+  conversation.value.state = transition(conversation.value.state, ConversationState.CONFIRMING_ROUTE)
+
+  displayedMessages.value.push(clinicMessage)
+  await nextTick()
+  await playAnimationSequence(displayedMessages.value.length - 1)
+}
+
+// Handle route modifications (CONFIRMING_ROUTE state)
+async function handleRouteModification(content: string) {
+  // User might confirm or request modifications
+  if (isConfirmationMessage(content)) {
+    await finishNavigation()
+    return
+  }
+
+  // User is requesting a modification - collect requirements
+  isLoading.value = true
+
+  try {
+    const reqResult = await collectRequirement(content)
+
+    if (!reqResult.success || !reqResult.data) {
+      showError(reqResult.error || '解析需求失败')
+      return
+    }
+
+    const existingRequirements = conversation.value.requirements || []
+    const allRequirements = mergeRequirements(existingRequirements, reqResult.data.requirements)
+
+    // Try to patch the route
+    const patchResult = await patchRoute(
+      conversation.value.clinicId || '',
+      allRequirements,
+      conversation.value.route || []
+    )
+
+    if (!patchResult.success || !patchResult.data) {
+      showError(patchResult.error || '修改路线失败')
+      return
+    }
+
+    // Update route
+    conversation.value.route = patchResult.data.patched_route
+    conversation.value.estimatedWaitTime = patchResult.data.estimated_wait_time
+    conversation.value.requirements = allRequirements
+
+    // Show updated route
+    const updatedRouteMessage: ChatMessage = {
+      type: 'bot',
+      content: [
+        '我明白你的意思了！现在是新的行进路径：\n',
+        { type: 'nav-path', route: conversation.value.route.join('+') },
+        '\n还想修改什么吗？\n',
+        { type: 'confirm-button' },
+      ],
+    }
+
+    displayedMessages.value.push(updatedRouteMessage)
+    await nextTick()
+    await playAnimationSequence(displayedMessages.value.length - 1)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Finish navigation
+async function finishNavigation() {
+  conversation.value.state = transition(conversation.value.state, ConversationState.NAVIGATING)
+
+  const finalMessage: ChatMessage = {
+    type: 'bot',
+    content: ['好的！现在开始导航！'],
+  }
+
+  displayedMessages.value.push(finalMessage)
+  await nextTick()
+  await playAnimationSequence(displayedMessages.value.length - 1)
+}
+
+// Show error message in chat
+function showError(message: string) {
+  errorMessage.value = message
+
+  const errorBotMessage: ChatMessage = {
+    type: 'bot',
+    content: [`抱歉，${message}`],
+  }
+
+  displayedMessages.value.push(errorBotMessage)
+  nextTick().then(() => playAnimationSequence(displayedMessages.value.length - 1))
 }
 
 // Set component refs for a specific message index
@@ -215,33 +463,36 @@ const shouldUseTypewriter = (msg: ChatMessage): boolean => {
   return msg.type === 'bot' && msg.content.every(block => typeof block === 'string')
 }
 
-// Handle confirm button click
-// 仅在 Message 4(currentBotIndex=3) 和 Message 6(currentBotIndex=5) 时推进
+// Handle confirm button click - routes based on conversation state
 const handleConfirmClick = async (msgIdx: number) => {
   try {
-    if (isAnimating.value) return
+    if (isAnimating.value || isLoading.value) return
+
+    errorMessage.value = null
 
     // Add user confirmation message
     displayedMessages.value.push({
       type: 'user',
-      content: ['确认']
+      content: ['确认'],
     })
 
-    // Message 4 (currentBotIndex=3) 和 Message 6 (currentBotIndex=5) 由 confirm-button 触发
-    if (currentBotIndex.value === 3 || currentBotIndex.value === 5) {
-      const nextBotIndex = currentBotIndex.value + 1
+    await nextTick()
 
-      if (nextBotIndex < botMessagesData.length) {
-        displayedMessages.value.push(botMessagesData[nextBotIndex])
-        currentBotIndex.value = nextBotIndex
-
-        await nextTick()
-        const displayedBotIndex = displayedMessages.value.length - 1
-        await playAnimationSequence(displayedBotIndex)
-      }
+    switch (conversation.value.state) {
+      case ConversationState.CONFIRMING_CONDITION:
+        await proceedToClinicSelection()
+        break
+      case ConversationState.CONFIRMING_ROUTE:
+        await finishNavigation()
+        break
+      default:
+        if (import.meta.env.DEV) {
+          console.warn('[TriageChat] Unexpected state for confirm:', conversation.value.state)
+        }
     }
   } catch (error) {
     console.error('Failed to handle confirm:', error)
+    showError('确认失败，请重试')
   }
 }
 </script>
@@ -344,11 +595,26 @@ const handleConfirmClick = async (msgIdx: number) => {
           </div>
         </div>
       </template>
+
+      <!-- Loading indicator -->
+      <div v-if="isLoading" class="message-wrapper bot-wrapper">
+        <div class="bot-avatar">
+          <v-icon size="16" style="font-variation-settings: 'FILL' 1">mdi-robot</v-icon>
+        </div>
+        <div class="message-bubble bot-bubble">
+          <span class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- Chat Input -->
     <ChatInput
       placeholder="输入你想说的..."
+      :disabled="isLoading || isAnimating"
       @send="sendMessage"
     />
   </v-main>
@@ -502,6 +768,43 @@ $secondary: #006a63;
 
   &:hover {
     box-shadow: 0 8px 24px rgba($on-surface, 0.12);
+  }
+}
+
+// Typing Indicator
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.25rem 0;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $on-surface-variant;
+  animation: typing-bounce 1.4s infinite ease-in-out;
+
+  &:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
   }
 }
 </style>

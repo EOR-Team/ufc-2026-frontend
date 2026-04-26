@@ -4,11 +4,13 @@ import { ref } from 'vue'
 interface Props {
   placeholder?: string
   maxLength?: number
+  disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '输入...',
-  maxLength: 500
+  maxLength: 500,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -18,6 +20,8 @@ const emit = defineEmits<{
 const inputValue = ref('')
 
 const send = () => {
+  if (props.disabled) return
+
   const content = inputValue.value.trim()
   if (!content) return
 
@@ -28,16 +32,17 @@ const send = () => {
 
 <template>
   <div class="chat-input-wrapper">
-    <div class="chat-input-container">
+    <div class="chat-input-container" :class="{ disabled }">
       <input
         v-model="inputValue"
         type="text"
         class="chat-input"
         :placeholder="placeholder"
         :maxlength="maxLength"
+        :disabled="disabled"
         @keyup.enter="send"
       />
-      <button class="send-btn" @click="send">
+      <button class="send-btn" :disabled="disabled" @click="send">
         <v-icon size="20">mdi-send</v-icon>
       </button>
     </div>
@@ -113,12 +118,25 @@ $background: #f7fafb;
   transition: all 300ms ease;
   flex-shrink: 0;
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.95);
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     box-shadow: 0 8px 24px rgba($on-surface, 0.12);
   }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.chat-input-container.disabled {
+  opacity: 0.6;
+}
+
+.chat-input:disabled {
+  cursor: not-allowed;
 }
 </style>

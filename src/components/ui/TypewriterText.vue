@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   complete: []
+  charTyped: []
 }>()
 
 interface CharState {
@@ -134,6 +135,8 @@ const typeNextChar = (onComplete?: () => void) => {
         highlighted: segment.highlighted
       })
 
+      emit('charTyped')
+      containerRef.value?.dispatchEvent(new Event('charTyped', { bubbles: true }))
       currentSegmentCharIndex++
 
       // Schedule next character

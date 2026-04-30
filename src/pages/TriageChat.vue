@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import AppHeader from '@/components/ui/AppHeader.vue'
 import ChatInput from '@/components/ui/ChatInput.vue'
 import TypewriterText from '@/components/ui/TypewriterText.vue'
@@ -47,6 +47,118 @@ const errorMessage = ref<string | null>(null)
 // Animation state
 const isAnimating = ref(false)
 
+// Smart auto-scroll: respects user manual scrolling
+let isUserScrolling = false
+let resumeTimer: ReturnType<typeof setTimeout> | null = null
+let scrollAnimationId: number | null = null
+
+const RESUME_DELAY = 3000 // resume auto-scroll 3s after user stops scrolling
+
+// cubic-bezier(0.33, 1, 0.68, 1) — ease-out-expo variant
+// Solve t from x using cubic bezier formula: x(t) = 3(1-t)²t·x1 + 3(1-t)·t²·x2 + t³
+const solveCubicBezier = (x: number): number => {
+  // Newton-Raphson iteration to find t given x
+  // Control points: P1=(0.4, 0), P2=(0.2, 1) — S-curve: slow start, fast middle, slow end
+  let t = x
+  for (let i = 0; i < 8; i++) {
+    const currentX = 3 * (1 - t) * (1 - t) * t * 0.4 + 3 * (1 - t) * t * t * 0.2 + t * t * t
+    const derivative = 3 * (1 - t) * (1 - t) * 0.4 + 6 * (1 - t) * t * (0.4 - 0.2) + 3 * t * t * (0.2 - 0) + 3 * t * t * 0.4
+    if (Math.abs(derivative) < 1e-6) break
+    t = t - (currentX - x) / derivative
+    t = Math.max(0, Math.min(1, t))
+  }
+  return t
+}
+
+const easeInOutExpo = (t: number): number => {
+  // y(t) = 3(1-t)²t·y1 + 3(1-t)·t²·y2 + t³
+  // y1=0, y2=1 → 3(1-t)²t·0 + 3(1-t)·t²·1 + t³ = 3(1-t)·t² + t³ = t²(3-2t)
+  if (t >= 1) return 1
+  const eased = solveCubicBezier(t)
+  return eased * eased * (3 - 2 * eased)
+}
+
+// Smooth scroll to bottom with cubic-bezier easing
+const smoothScrollToBottom = (targetY: number) => {
+  if (scrollAnimationId) {
+    cancelAnimationFrame(scrollAnimationId)
+  }
+
+  const startY = window.scrollY
+  const distance = targetY - startY
+  if (distance === 0) return
+
+  const duration = 3500 // ms
+  const startTime = performance.now()
+
+  const animate = (currentTime: number) => {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const easedProgress = easeInOutExpo(progress)
+    const currentY = startY + distance * easedProgress
+
+    window.scrollTo(0, currentY)
+
+    if (progress < 1) {
+      scrollAnimationId = requestAnimationFrame(animate)
+    } else {
+      scrollAnimationId = null
+    }
+  }
+
+  scrollAnimationId = requestAnimationFrame(animate)
+}
+
+// Check if bottom is visible in viewport
+const isBottomVisible = (): boolean => {
+  const scrollTop = window.scrollY
+  const clientHeight = window.innerHeight
+  const scrollHeight = document.documentElement.scrollHeight
+  return scrollHeight - scrollTop - clientHeight < 100
+}
+
+// Try to scroll to bottom, respects user scroll state
+const tryScrollToBottom = () => {
+  if (isUserScrolling) return
+  if (!isBottomVisible()) {
+    smoothScrollToBottom(document.documentElement.scrollHeight)
+  }
+}
+
+// On user scroll: pause auto-scroll, restart resume timer
+const handleUserScroll = () => {
+  if (!isUserScrolling) {
+    isUserScrolling = true
+  }
+  if (resumeTimer) clearTimeout(resumeTimer)
+  resumeTimer = setTimeout(() => {
+    isUserScrolling = false
+    tryScrollToBottom()
+  }, RESUME_DELAY)
+}
+
+// Handle charTyped events from TypewriterText (event delegation)
+const handleCharTyped = () => {
+  if (isUserScrolling) return
+  if (!isBottomVisible()) {
+    smoothScrollToBottom(document.documentElement.scrollHeight)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', handleUserScroll, { passive: true })
+  const chatContainer = document.querySelector('.chat-container')
+  chatContainer?.addEventListener('charTyped', handleCharTyped)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleUserScroll)
+  const chatContainer = document.querySelector('.chat-container')
+  chatContainer?.removeEventListener('charTyped', handleCharTyped)
+  if (resumeTimer) clearTimeout(resumeTimer)
+  if (scrollAnimationId) cancelAnimationFrame(scrollAnimationId)
+})
+
 // Greeting message shown on load
 const greetingMessage: ChatMessage = {
   type: 'bot',
@@ -56,7 +168,6 @@ const greetingMessage: ChatMessage = {
 // Auto-play greeting on page load
 onMounted(async () => {
   displayedMessages.value.push(greetingMessage)
-  // Wait for next tick to ensure template refs are set before playing animation
   await nextTick()
   requestAnimationFrame(() => {
     playAnimationSequence(0)
@@ -126,6 +237,7 @@ const sendMessage = async (content: string) => {
     })
 
     await nextTick()
+    tryScrollToBottom()
 
     switch (conversation.value.state) {
       case ConversationState.COLLECTING_CONDITION:
@@ -477,6 +589,7 @@ const handleConfirmClick = async (msgIdx: number) => {
     })
 
     await nextTick()
+    tryScrollToBottom()
 
     switch (conversation.value.state) {
       case ConversationState.CONFIRMING_CONDITION:
